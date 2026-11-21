@@ -591,7 +591,7 @@ func readOutput(w *wire, id uint64, entry fileEntry, dest string) (stagedOutput,
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return stagedOutput{}, err
 	}
-	f, err := os.CreateTemp(dir, ".flake-partial-")
+	f, err := os.CreateTemp(dir, ".ocean-partial-")
 	if err != nil {
 		return stagedOutput{}, err
 	}

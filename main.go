@@ -33,15 +33,15 @@ func main() {
 	var err error
 	args := os.Args[1:]
 	switch {
-	case filepath.Base(os.Args[0]) == "flake-worker" || (len(args) > 0 && args[0] == "--flake-worker"):
-		if len(args) > 0 && args[0] == "--flake-worker" {
+	case filepath.Base(os.Args[0]) == "ocean-worker" || (len(args) > 0 && args[0] == "--ocean-worker"):
+		if len(args) > 0 && args[0] == "--ocean-worker" {
 			args = args[1:]
 		}
 		err = workerMain(ctx, args)
-	case len(args) == 1 && strings.HasPrefix(args[0], "--flake-internal-"):
+	case len(args) == 1 && strings.HasPrefix(args[0], "--ocean-internal-"):
 		err = bridge(args[0])
 	default:
-		err = flakeMain(ctx, args)
+		err = oceanMain(ctx, args)
 	}
 	if err == nil {
 		return
@@ -56,15 +56,15 @@ func main() {
 		}
 		os.Exit(code)
 	}
-	fmt.Fprintf(os.Stderr, "flake: %v\n", err)
+	fmt.Fprintf(os.Stderr, "ocean: %v\n", err)
 	os.Exit(1)
 }
 
 func platform() string { return runtime.GOOS + "/" + runtime.GOARCH }
 
 func debugf(format string, args ...any) {
-	if os.Getenv("FLAKE_DEBUG") != "" {
-		fmt.Fprintf(os.Stderr, "flake: "+format+"\n", args...)
+	if os.Getenv("OCEAN_DEBUG") != "" {
+		fmt.Fprintf(os.Stderr, "ocean: "+format+"\n", args...)
 	}
 }
 
@@ -74,7 +74,7 @@ func commandText(ctx context.Context, path string, args ...string) (string, erro
 }
 
 func bridge(operation string) error {
-	conn, err := net.Dial("unix", os.Getenv("FLAKE_SOCKET"))
+	conn, err := net.Dial("unix", os.Getenv("OCEAN_SOCKET"))
 	if err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func bridge(operation string) error {
 	}
 	req := message{}
 	switch operation {
-	case "--flake-internal-graph":
+	case "--ocean-internal-graph":
 		req.Type = "graph"
 		var resolved struct {
 			Root, CWD string
@@ -100,7 +100,7 @@ func bridge(operation string) error {
 		} else {
 			req.Root, req.CWD, req.Graph = resolved.Root, resolved.CWD, resolved.Graph
 		}
-	case "--flake-internal-compile":
+	case "--ocean-internal-compile":
 		req.Type = "compile"
 		req.Job = &compileJob{Setup: input}
 	default:
@@ -125,15 +125,15 @@ func bridge(operation string) error {
 	return json.NewEncoder(os.Stdout).Encode(msg.Result)
 }
 
-func flakeMain(ctx context.Context, args []string) error {
+func oceanMain(ctx context.Context, args []string) error {
 	start := time.Now()
 	var config string
 	policy := "eager"
-	for len(args) > 0 && strings.HasPrefix(args[0], "--flake-") {
+	for len(args) > 0 && strings.HasPrefix(args[0], "--ocean-") {
 		key, val, hasValue := strings.Cut(args[0], "=")
 		args = args[1:]
-		if key != "--flake-config" && key != "--flake-policy" {
-			return fmt.Errorf("unknown Flake option %s", key)
+		if key != "--ocean-config" && key != "--ocean-policy" {
+			return fmt.Errorf("unknown Ocean option %s", key)
 		}
 		if !hasValue {
 			if len(args) == 0 {
@@ -141,7 +141,7 @@ func flakeMain(ctx context.Context, args []string) error {
 			}
 			val, args = args[0], args[1:]
 		}
-		if key == "--flake-config" {
+		if key == "--ocean-config" {
 			config = val
 		} else {
 			policy = val
@@ -187,7 +187,7 @@ func flakeMain(ctx context.Context, args []string) error {
 		return err
 	}
 	if cfg.Adapter == "" {
-		cfg.Adapter = filepath.Join(filepath.Dir(self), "flake-lake")
+		cfg.Adapter = filepath.Join(filepath.Dir(self), "ocean-lake")
 	} else if !filepath.IsAbs(cfg.Adapter) {
 		cfg.Adapter = filepath.Join(filepath.Dir(config), cfg.Adapter)
 	}
@@ -204,7 +204,7 @@ func flakeMain(ctx context.Context, args []string) error {
 		return err
 	}
 	defer tcp.Close()
-	tmp, err := os.MkdirTemp("", "flake-master-")
+	tmp, err := os.MkdirTemp("", "ocean-master-")
 	if err != nil {
 		return err
 	}
@@ -245,7 +245,7 @@ func flakeMain(ctx context.Context, args []string) error {
 		return stock()
 	}
 	cmd := exec.CommandContext(ctx, adapter, lakeArgs...)
-	cmd.Env = append(os.Environ(), "LEAN_SYSROOT="+root, "FLAKE_BRIDGE="+self, "FLAKE_SOCKET="+socket)
+	cmd.Env = append(os.Environ(), "LEAN_SYSROOT="+root, "OCEAN_BRIDGE="+self, "OCEAN_SOCKET="+socket)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	err = cmd.Run()
 	wall := time.Since(start)

@@ -32,7 +32,7 @@ type blobTransfer struct {
 }
 
 func workerMain(ctx context.Context, args []string) error {
-	flags := flag.NewFlagSet("flake-worker", flag.ContinueOnError)
+	flags := flag.NewFlagSet("ocean-worker", flag.ContinueOnError)
 	address := flags.String("connect", "", "master TCP address")
 	hostname, _ := os.Hostname()
 	host := flags.String("host", hostname, "identity shared by all slots on this host")
@@ -42,7 +42,7 @@ func workerMain(ctx context.Context, args []string) error {
 		return err
 	}
 	if *address == "" || *host == "" || *slots < 1 || flags.NArg() != 0 {
-		return errors.New("usage: flake-worker --connect HOST:PORT [--host ID] [--slots N] [--toolchain PATH]")
+		return errors.New("usage: ocean-worker --connect HOST:PORT [--host ID] [--slots N] [--toolchain PATH]")
 	}
 	toolchain := *root
 	if toolchain == "" {
@@ -60,7 +60,7 @@ func workerMain(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	dir, err := os.MkdirTemp("", "flake-worker-")
+	dir, err := os.MkdirTemp("", "ocean-worker-")
 	if err != nil {
 		return err
 	}

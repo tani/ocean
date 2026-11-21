@@ -1,6 +1,6 @@
 # Architecture Overview
 
-Flake distributes Lean verification builds across trusted Linux hosts. A reviewer runs `flake` in a Lake project, and the master returns the compiled artifacts to that project's ordinary Lake workspace. Update this document when the Lake integration, scheduler, worker protocol, or artifact layout changes.
+Ocean distributes Lean verification builds across trusted Linux hosts. A reviewer runs `ocean` in a Lake project, and the master returns the compiled artifacts to that project's ordinary Lake workspace. Update this document when the Lake integration, scheduler, worker protocol, or artifact layout changes.
 
 ## 1. Project Structure
 
@@ -14,9 +14,9 @@ Flake distributes Lean verification builds across trusted Linux hosts. A reviewe
 ├── wire.go                     # Framed CBOR messages and checked file transfers
 ├── internal/adapter/patch.py   # Hooks applied to the pinned upstream Lake sources
 ├── scripts/
-│   ├── build                   # Build Flake and the dedicated Lake adapter
+│   ├── build                   # Build Ocean and the dedicated Lake adapter
 │   ├── test-compose            # Run the two- and three-worker integration scenarios
-│   ├── benchmark               # Compare clean Mathlib builds with Lake and Flake
+│   ├── benchmark               # Compare clean Mathlib builds with Lake and Ocean
 │   └── report.py               # Summarize timing and per-attempt events
 ├── integration_test.go         # Wire, disconnect, and Compose tests
 ├── tests/project/              # Lean fixture with a diamond-shaped import graph
@@ -26,17 +26,17 @@ Flake distributes Lean verification builds across trusted Linux hosts. A reviewe
 └── PLAN.md                     # Project goals, research references, and milestones
 ```
 
-`scripts/build` generates the adapter workspace under `.flake/lake/` and the executable entry points under `bin/`. The handwritten Go code lives in a single package at the project root.
+`scripts/build` generates the adapter workspace under `.ocean/lake/` and the executable entry points under `bin/`. The handwritten Go code lives in a single package at the project root.
 
 ## 2. High-Level System Diagram
 
 ```mermaid
 flowchart LR
-    Reviewer[Reviewer or verification CI] --> Master[Flake CLI and master]
+    Reviewer[Reviewer or verification CI] --> Master[Ocean CLI and master]
     Master -->|Starts build| Lake[Dedicated Lake 4.35.0]
     Lake -->|Graph and ready module jobs| Bridge[Local Go bridge]
     Bridge <-->|CBOR over Unix socket| Master
-    Master <-->|CBOR over TCP| Worker[One or more Flake workers]
+    Master <-->|CBOR over TCP| Worker[One or more Ocean workers]
     Worker -->|Runs| Lean[Official Lean compiler]
     Master -->|Publishes module artifacts| Workspace[(Lake workspace)]
     Lake -->|Writes hashes and traces| Workspace
@@ -48,7 +48,7 @@ Lake resolves targets, imports, and freshness. The resolved graph lets the maste
 
 ### CLI and local bridge
 
-`main.go` implements `flake`, `flake-worker`, and the internal bridge commands in one Go binary. `flake` consumes leading `--flake-config` and `--flake-policy` options and forwards Lake arguments in order. Distributed routing is enabled for configured `build` invocations with a compatible toolchain and workers. Other commands and builds without compatible workers use stock Lake.
+`main.go` implements `ocean`, `ocean-worker`, and the internal bridge commands in one Go binary. `ocean` consumes leading `--ocean-config` and `--ocean-policy` options and forwards Lake arguments in order. Distributed routing is enabled for configured `build` invocations with a compatible toolchain and workers. Other commands and builds without compatible workers use stock Lake.
 
 ### Lake adapter
 
@@ -81,14 +81,14 @@ The first complete result that passes validation is published. Losing attempts r
 
 ## 5. External Integrations
 
-- **Lean and Lake.** The supported release is Lean 4.35.0. The dedicated adapter comes from upstream Lake sources, and workers invoke the official Lean compiler. Elan can provide the pinned toolchain for a local build of Flake.
+- **Lean and Lake.** The supported release is Lean 4.35.0. The dedicated adapter comes from upstream Lake sources, and workers invoke the official Lean compiler. Elan can provide the pinned toolchain for a local build of Ocean.
 - **Git and GitHub.** Git supplies the tracked workspace file list. The benchmark fetches a pinned Mathlib revision, and Lake resolves its pinned dependencies. The Docker build downloads the Lean release from GitHub.
 
 ## 6. Deployment and Infrastructure
 
-Run `flake` on the machine holding the reviewer's workspace and `flake-worker` on each participating host. Match the workers' Linux architecture and Lean commit to the master. The master reads `listen`, `workers`, `wait`, and optional `adapter` and `events` values from the TOML configuration. The default listener binds to `127.0.0.1:7431`.
+Run `ocean` on the machine holding the reviewer's workspace and `ocean-worker` on each participating host. Match the workers' Linux architecture and Lean commit to the master. The master reads `listen`, `workers`, `wait`, and optional `adapter` and `events` values from the TOML configuration. The default listener binds to `127.0.0.1:7431`.
 
-Docker Compose packages the same binaries and provides the test topology. The `master` service hosts the test workspaces, and the `slave` service scales to two or three containers. Operational output comes from Lake, optional `FLAKE_DEBUG` diagnostics, and the event log.
+Docker Compose packages the same binaries and provides the test topology. The `master` service hosts the test workspaces, and the `slave` service scales to two or three containers. Operational output comes from Lake, optional `OCEAN_DEBUG` diagnostics, and the event log.
 
 ## 7. Security Considerations
 
@@ -102,7 +102,7 @@ With Go 1.26, Python 3, Git, and the pinned Lean toolchain installed, run `scrip
 
 - `go test ./...` exercises chunked CBOR transfer and disconnect recovery. Use `go test -race ./...` and `go vet ./...` when changing Go concurrency or transport code.
 - `scripts/test-compose` exercises argument forwarding, cross-worker dependency ordering, eager replicas, compiler diagnostics, normal artifact placement, and reuse through official Lake.
-- `scripts/benchmark` compares clean runs with stock Lake and Flake's three policies. Pass a smaller target such as `Mathlib.Init` to check the runner before a full Mathlib build.
+- `scripts/benchmark` compares clean runs with stock Lake and Ocean's three policies. Pass a smaller target such as `Mathlib.Init` to check the runner before a full Mathlib build.
 
 ## 9. Roadmap
 
@@ -112,9 +112,9 @@ The next performance milestone is a clean, full Mathlib build on separate hosts.
 
 | Field | Value |
 | --- | --- |
-| Project | Flake |
-| Home | Current Flake workspace |
-| Standalone repository URL | Unrecorded in the workspace |
+| Project | Ocean |
+| Home | Current Ocean workspace |
+| Standalone repository URL | https://github.com/tani/ocean |
 | Primary contact | Unrecorded in the workspace |
 | Last updated | 2026-11-21 |
 
@@ -124,8 +124,8 @@ The next performance milestone is a clean, full Mathlib build on separate hosts.
 | --- | --- |
 | Lake | Lean's build and package manager. |
 | Master | The Go coordinator that runs alongside Lake on the reviewer's machine. |
-| Worker or slave | A `flake-worker` process on a participating host. `slave` is the Compose service name. |
+| Worker or slave | A `ocean-worker` process on a participating host. `slave` is the Compose service name. |
 | DAG | Directed acyclic graph. Each node is a Lean module and each edge represents an import dependency. |
 | Attempt | A single execution of a module job. Speculation can launch multiple attempts for the same job. |
-| CBOR | Concise Binary Object Representation, the encoding for Flake's transport. |
+| CBOR | Concise Binary Object Representation, the encoding for Ocean's transport. |
 | `.olean` | A compiled Lean module artifact that other modules can import. |

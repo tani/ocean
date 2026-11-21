@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-toolchain=${FLAKE_LEAN_ROOT:-$(elan run leanprover/lean4:v4.35.0 lean --print-prefix)}
-mkdir -p bin .flake/lake
-work=$PWD/.flake/lake
+toolchain=${OCEAN_LEAN_ROOT:-$(elan run leanprover/lean4:v4.35.0 lean --print-prefix)}
+mkdir -p bin .ocean/lake
+work=$PWD/.ocean/lake
 cp -R "$toolchain/src/lean/lake/." "$work/"
 chmod -R u+w "$work"
 python3 internal/adapter/patch.py "$work"
 cat > "$work/lakefile.toml" <<'TOML'
-name = "flakeLake"
+name = "oceanLake"
 defaultTargets = ["lake"]
 [[lean_lib]]
 name = "Lake"
@@ -18,6 +18,6 @@ root = "LakeMain"
 supportInterpreter = true
 TOML
 "$toolchain/bin/lake" --dir="$work" --no-cache build
-ln -sfn ../.flake/lake/.lake/build/bin/lake bin/flake-lake
-${GO:-go} build -o bin/flake .
-ln -sfn flake bin/flake-worker
+ln -sfn ../.ocean/lake/.lake/build/bin/lake bin/ocean-lake
+${GO:-go} build -o bin/ocean .
+ln -sfn ocean bin/ocean-worker

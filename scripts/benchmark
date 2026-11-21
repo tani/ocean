@@ -11,10 +11,10 @@ mkdir "$2"
 out=$(realpath "$2")
 revision=56a005855ea17e0b0958f73ec801ae140b0a1679
 target=${3:-Mathlib}
-toolchain=${FLAKE_LEAN_ROOT:-$(elan run leanprover/lean4:v4.35.0 lean --print-prefix)}
+toolchain=${OCEAN_LEAN_ROOT:-$(elan run leanprover/lean4:v4.35.0 lean --print-prefix)}
 export PATH="$toolchain/bin:$project/bin:$PATH"
 export LAKE_ARTIFACT_CACHE=false LAKE_NO_CACHE=true LAKE_CACHE_DIR=
-export FLAKE_DEBUG=${FLAKE_DEBUG:-1}
+export OCEAN_DEBUG=${OCEAN_DEBUG:-1}
 start=$SECONDS
 git init -q "$out/source"
 git -C "$out/source" fetch -q --depth=1 https://github.com/leanprover-community/mathlib4.git "$revision"
@@ -35,7 +35,7 @@ for policy in lake single delayed eager; do
     command=(lake --no-cache build "$target")
   else
     worker_conf=$out/$policy.toml
-    python3 - "$config" "$events" "$project/bin/flake-lake" > "$worker_conf" <<'PY'
+    python3 - "$config" "$events" "$project/bin/ocean-lake" > "$worker_conf" <<'PY'
 import json
 import pathlib
 import sys
@@ -51,7 +51,7 @@ entries["events"] = sys.argv[2]
 for key, value in entries.items():
     print(f"{key} = {json.dumps(value)}")
 PY
-    command=(flake "--flake-config=$worker_conf" "--flake-policy=$policy" --no-cache build "$target")
+    command=(ocean "--ocean-config=$worker_conf" "--ocean-policy=$policy" --no-cache build "$target")
   fi
   (
     cd "$work"

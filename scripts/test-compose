@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-export COMPOSE_PROJECT_NAME=flake-test-$$
+export COMPOSE_PROJECT_NAME=ocean-test-$$
 trap 'docker compose down' EXIT
 docker compose up --build -d --scale slave=2
-docker compose exec -T master env FLAKE_COMPOSE=single go test -run 'TestCompose|TestFrame'
+docker compose exec -T master env OCEAN_COMPOSE=single go test -run 'TestCompose|TestFrame'
 docker compose up -d --no-build --scale slave=3
-docker compose exec -T master env FLAKE_COMPOSE=eager go test -run TestCompose
+docker compose exec -T master env OCEAN_COMPOSE=eager go test -run TestCompose

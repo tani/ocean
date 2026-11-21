@@ -1,9 +1,9 @@
 services:
   master:
-    image: flake-lean435
+    image: ocean-lean435
     build: .
     init: true
   slave:
-    image: flake-lean435
+    image: ocean-lean435
     init: true
-    command: ["flake-worker", "--connect", "master:7431", "--slots", "1", "--toolchain", "/opt/lean"]
+    command: ["ocean-worker", "--connect", "master:7431", "--slots", "1", "--toolchain", "/opt/lean"]

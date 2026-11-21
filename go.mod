@@ -1,4 +1,4 @@
-module flake
+module github.com/tani/ocean
 
 go 1.26
 

@@ -56,7 +56,7 @@ func loadEvents(t *testing.T, path string) []event {
 }
 
 func TestCompose(t *testing.T) {
-	policy := os.Getenv("FLAKE_COMPOSE")
+	policy := os.Getenv("OCEAN_COMPOSE")
 	if policy == "" {
 		t.Skip("run with scripts/test-compose")
 	}
@@ -88,11 +88,11 @@ func TestCompose(t *testing.T) {
 	}
 	runCommand(t, dir, "lake", "env", "true")
 	stock := runCommand(t, dir, "lake", "env", "printf", "%s", "argument with spaces")
-	wrapped := runCommand(t, dir, "flake", "--flake-policy="+policy, "env", "printf", "%s", "argument with spaces")
+	wrapped := runCommand(t, dir, "ocean", "--ocean-policy="+policy, "env", "printf", "%s", "argument with spaces")
 	if !bytes.Equal(stock, wrapped) {
 		t.Fatalf("pass-through output: %q, want %q", wrapped, stock)
 	}
-	runCommand(t, parent, "flake", "--flake-config="+filepath.Join(dir, "workers.toml"), "--flake-policy="+policy,
+	runCommand(t, parent, "ocean", "--ocean-config="+filepath.Join(dir, "workers.toml"), "--ocean-policy="+policy,
 		"--dir="+filepath.Base(dir), "--no-cache", "build", "Main", "+Base")
 	events := loadEvents(t, log)
 	dispatch := map[string][]event{}
@@ -141,7 +141,7 @@ func TestCompose(t *testing.T) {
 		}
 	}
 	runCommand(t, dir, "lake", "--no-build", "--no-cache", "build", "Main")
-	runCommand(t, parent, "flake", "--flake-config="+filepath.Join(dir, "workers.toml"), "--flake-policy="+policy,
+	runCommand(t, parent, "ocean", "--ocean-config="+filepath.Join(dir, "workers.toml"), "--ocean-policy="+policy,
 		"--dir="+filepath.Base(dir), "--no-cache", "build", "Main", "+Base")
 	graphReceived := false
 	for _, e := range loadEvents(t, log) {
@@ -162,7 +162,7 @@ func TestCompose(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "Base.lean"), []byte("def base : MissingType := 1\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	bad := exec.CommandContext(t.Context(), "flake", "--flake-config=workers.toml", "--flake-policy=single", "build", "Main")
+	bad := exec.CommandContext(t.Context(), "ocean", "--ocean-config=workers.toml", "--ocean-policy=single", "build", "Main")
 	bad.Dir = dir
 	out, err := bad.CombinedOutput()
 	if err == nil || !bytes.Contains(out, []byte("MissingType")) {
