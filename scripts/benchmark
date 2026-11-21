@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -lt 2 || $# -gt 3 ]]; then
+  printf 'Usage: %s WORKER_CONFIG OUTPUT_DIRECTORY [TARGET]\n' "$0" >&2
+  exit 2
+fi
+project=$(cd "$(dirname "$0")/.." && pwd)
+config=$(realpath "$1")
+mkdir "$2"
+out=$(realpath "$2")
+revision=56a005855ea17e0b0958f73ec801ae140b0a1679
+target=${3:-Mathlib}
+toolchain=${FLAKE_LEAN_ROOT:-$(elan run leanprover/lean4:v4.35.0 lean --print-prefix)}
+export PATH="$toolchain/bin:$project/bin:$PATH"
+export LAKE_ARTIFACT_CACHE=false LAKE_NO_CACHE=true LAKE_CACHE_DIR=
+export FLAKE_DEBUG=${FLAKE_DEBUG:-1}
+start=$SECONDS
+git init -q "$out/source"
+git -C "$out/source" fetch -q --depth=1 https://github.com/leanprover-community/mathlib4.git "$revision"
+git -C "$out/source" -c advice.detachedHead=false checkout --detach FETCH_HEAD
+(cd "$out/source" && lake --no-cache env true) > "$out/setup.log" 2>&1
+git -C "$out/source" diff --exit-code -- lake-manifest.json lean-toolchain
+printf '%s\n' "$((SECONDS-start))" > "$out/setup-seconds"
+uname -a > "$out/master-host.txt"
+if command -v lscpu >/dev/null; then lscpu >> "$out/master-host.txt"; fi
+lean --version >> "$out/master-host.txt"
+printf '%s\n' "$revision" > "$out/revision"
+printf '%s\n' "$target" > "$out/target"
+for policy in lake single delayed eager; do
+  work=$out/$policy
+  cp -a "$out/source" "$work"
+  events=$out/$policy.events.jsonl
+  if [[ $policy == lake ]]; then
+    command=(lake --no-cache build "$target")
+  else
+    worker_conf=$out/$policy.toml
+    python3 - "$config" "$events" "$project/bin/flake-lake" > "$worker_conf" <<'PY'
+import json
+import pathlib
+import sys
+import tomllib
+config = pathlib.Path(sys.argv[1])
+with config.open("rb") as f:
+    entries = tomllib.load(f)
+if entries.get("adapter"):
+    entries["adapter"] = str((config.parent / entries["adapter"]).resolve())
+else:
+    entries["adapter"] = sys.argv[3]
+entries["events"] = sys.argv[2]
+for key, value in entries.items():
+    print(f"{key} = {json.dumps(value)}")
+PY
+    command=(flake "--flake-config=$worker_conf" "--flake-policy=$policy" --no-cache build "$target")
+  fi
+  (
+    cd "$work"
+    /usr/bin/time -f '%e %U %S %M' -o "$out/$policy.time" "${command[@]}"
+    lake --no-build --no-cache build "$target"
+  ) > "$out/$policy.log" 2>&1
+  if [[ $policy != lake && ! -s $events ]]; then
+    printf '%s: no worker events recorded\n' "$policy" >&2
+    exit 1
+  fi
+done
+python3 "$project/scripts/report.py" "$out"

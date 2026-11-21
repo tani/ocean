@@ -1,0 +1,5 @@
+name = "BranchFixture"
+defaultTargets = ["Main"]
+[[lean_lib]]
+name = "Main"
+globs = ["Main", "Base", "Left", "Right"]
